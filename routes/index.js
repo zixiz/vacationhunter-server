@@ -62,12 +62,16 @@ router.post('/login', async function(req, res, next) {
     });
     if(user.length==0){
       res.json({msg:'Username and password incorrect.'});
+    
     }else{
       if(user[0].role == 'admin'){
         req.session.clientName = user[0].name;
         req.session.role = user[0].role;
+        res.json({role:user[0].role,name:user[0].name})
       }else{
-
+        req.session.clientName = user[0].name;
+        req.session.role = user[0].role;
+        res.json({role:user[0].role,name:user[0].name})
       }
     }
 });
