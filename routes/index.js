@@ -46,7 +46,7 @@ router.post('/register', async function(req, res, next) {
       role:'user'
     }
     await Users.create(newObjForDB);
-    res.json({msg:'User created, you can login now.'})
+    res.json({msg:'User created, you can login now.'});
   }
 
 });
@@ -61,12 +61,13 @@ router.post('/login', async function(req, res, next) {
       where: objForLogin
     });
     if(user.length==0){
-      res.json({msg:'Username and password incorrect.'})
+      res.json({msg:'Username and password incorrect.'});
     }else{
       if(user[0].role == 'admin'){
-
+        req.session.clientName = user[0].name;
+        req.session.role = user[0].role;
       }else{
-        
+
       }
     }
 });
