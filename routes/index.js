@@ -51,6 +51,15 @@ router.post('/register', async function(req, res, next) {
 
 });
 
+router.get('/checksession', async function(req, res, next) {
+  if(req.session.clientName && req.session.role ){
+    res.json({role:req.session.role,name:req.session.clientName, success:true});
+  }else{
+    res.json({success:false});
+  }
+  
+});
+
 router.post('/login', async function(req, res, next) {
   let objForLogin={
     username:req.body.username,
@@ -64,31 +73,11 @@ router.post('/login', async function(req, res, next) {
       res.json({msg:'Username and password incorrect.'});
     
     }else{
-      if(user[0].role == 'admin'){
         req.session.clientName = user[0].name;
         req.session.role = user[0].role;
         res.json({role:user[0].role,name:user[0].name})
-      }else{
-        req.session.clientName = user[0].name;
-        req.session.role = user[0].role;
-        res.json({role:user[0].role,name:user[0].name})
-      }
     }
 });
 
-// router.get('/createvaction', function(req, res, next) {
-//   sequelize.sync()
-//     .then(()=> Vacations.create({
-//       destination:'pennsylvania USA',
-//       description:'dream vacation pennsylvania',
-//       image:'https://i.pinimg.com/originals/49/01/63/490163fd02c260ef807d8e85d02d3817.jpg',
-//       start_date:'2019-06-22',
-//       end_date:'2019-07-07',
-//       price:'2500 USD',
-//       followers:0
-//     })).then(data=>{
-//       res.json(data.toJSON());
-//     })
-// });
 
 module.exports = router;
