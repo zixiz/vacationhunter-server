@@ -25,13 +25,28 @@ const Vacations = sequelize.define('vacations', {
 });
 
 const VacationsOnFollow = sequelize.define('follow_vacation', {
-  userid: Sequelize.INTEGER,
+  username: Sequelize.STRING,
   vacationid: Sequelize.INTEGER
 });
 
 /* GET home page. */
 router.get('/', function(req, res, next) {
   res.render('index', { title: 'Express' });
+});
+
+router.post('/addvactions', async function(req, res, next) {
+    let objAddVacation = {
+      destination: req.body.destination,
+      description: req.body.description,
+      image: req.body.image,
+      start_date: req.body.start_date,
+      end_date: req.body.end_date,
+      price: req.body.price,
+      followers:0
+    };
+    console.log(objAddVacation);
+    await Vacations.create(objAddVacation);
+    res.json({msg:'vacation created'});
 });
 
 router.post('/register', async function(req, res, next) {
@@ -58,7 +73,7 @@ router.post('/register', async function(req, res, next) {
 
 router.get('/checksession', async function(req, res, next) {
   if(req.session.clientName && req.session.role ){
-    res.json({id: req.session.id,role:req.session.role, name:req.session.clientName, username:req.session.userName , success:true});
+    res.json({id: req.session.id,role:req.session.role, clientName:req.session.clientName, username:req.session.username, vacations:req.session.vacations , success:true});
   }else{
     res.json({success:false});
   }
@@ -66,8 +81,9 @@ router.get('/checksession', async function(req, res, next) {
 });
 
 router.get('/logout', async function(req, res, next) {
-  req.session.destroy();
-  res.json({status:"logged out"})
+    req.session.destroy(()=>{
+      res.json({role:"",id:"",clientName:"",userName:""})
+    })
 });
 
 router.post('/login', async function(req, res, next) {
@@ -86,28 +102,69 @@ router.post('/login', async function(req, res, next) {
         req.session.id = user[0].id;
         req.session.role = user[0].role;
         req.session.clientName = user[0].name;
-        req.session.userName = user[0].username;
+        req.session.username = user[0].username;
         
         res.json({id:user[0].id ,role:user[0].role,name:user[0].name,username:user[0].username})
     }
 });
 
 router.get('/user', async function(req, res, next) {
-
-    objUser ={
-      id: req.session.id,
-      name: req.session.clientName,
-      username: req.seesion.userName
+  await sequelize.sync();
+  vacationsOnFollow=[];
+  vacationsUnFollow=[];
+  let allVacations = await Vacations.findAll({});
+  let followVacationsFromDB= await VacationsOnFollow.findAll({where:{username:req.session.username}});
+  if(followVacationsFromDB.length > 0){
+    for (let i = 0; i < allVacations.length; i++) {
+      let check =  followVacationsFromDB.find(follow=> follow.vacationid === allVacations[i].id);
+      console.log(check)
+      if(check === undefined){
+        vacationsUnFollow.push(allVacations[i]);
+      }else{
+        vacationsOnFollow.push(allVacations[i]);
+      }
     }
-    // await sequelize.sync();
-    // let vacations = await Vacations.findAll({});
+    res.json({vacationsOnFollow:vacationsOnFollow,vacationsUnFollow:vacationsUnFollow});
+  }else{
+    res.json({vacationsOnFollow:vacationsOnFollow,vacationsUnFollow:allVacations});
+  }
+  // await sequelize.sync();
+  // let vacations = await Vacations.findAll({});
+  // req.session.vacations = vacations;
+  // let objUser ={
+  //   id:req.session.id,
+  //   role:req.session.role,
+  //   clientName:req.session.clientName,
+  //   userName:req.session.username,
+  //   vacations:vacations
+  // }
+  // res.json({userData:objUser});
 
-    // await sequelize.sync();
-    // let vacationsOnFollow = await VacationsOnFollow.findAll({
-    //   where: req.session.id
-    // });
+});
 
-    res.json(objUser)
+router.get('/addfollow', async function(req, res, next) {
+  // Add +1 follow to Vacations table
+  await sequelize.sync();
+  let vacationfollowers = await Vacations.findAll({
+    where:{
+      id:req.query.vacationId
+    }
+  });
+  let addfollow = vacationfollowers[0].followers +1;
+  await Vacations.update({followers:addfollow},{
+    where:{id:req.query.vacationId}
+  });
+  // create new row in db of vacations on follow
+  let newObjForDB ={
+    username:req.session.username,
+    vacationid:req.query.vacationId
+  }
+  await VacationsOnFollow.create(newObjForDB);
+
+
+
+router.get('/removefollow', async function(req, res, next) {
+  
 });
 
 module.exports = router;
