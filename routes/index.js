@@ -110,8 +110,8 @@ router.post('/login', async function(req, res, next) {
 
 router.get('/user', async function(req, res, next) {
   await sequelize.sync();
-  vacationsOnFollow=[];
-  vacationsUnFollow=[];
+  let vacationsOnFollow=[];
+  let vacationsUnFollow=[];
   let allVacations = await Vacations.findAll({});
   let followVacationsFromDB= await VacationsOnFollow.findAll({where:{username:req.session.username}});
   if(followVacationsFromDB.length > 0){
@@ -124,22 +124,12 @@ router.get('/user', async function(req, res, next) {
         vacationsOnFollow.push(allVacations[i]);
       }
     }
-    res.json({vacationsOnFollow:vacationsOnFollow,vacationsUnFollow:vacationsUnFollow});
+    res.json({vacationsOnFollow:vacationsOnFollow,vacationsUnFollow:vacationsUnFollow,id:req.session.id,
+    role:req.session.role,clientName:req.session.clientName,userName:req.session.username});
   }else{
-    res.json({vacationsOnFollow:vacationsOnFollow,vacationsUnFollow:allVacations});
+    res.json({vacationsOnFollow:vacationsOnFollow,vacationsUnFollow:allVacations,id:req.session.id,
+    role:req.session.role,clientName:req.session.clientName,userName:req.session.username});
   }
-  // await sequelize.sync();
-  // let vacations = await Vacations.findAll({});
-  // req.session.vacations = vacations;
-  // let objUser ={
-  //   id:req.session.id,
-  //   role:req.session.role,
-  //   clientName:req.session.clientName,
-  //   userName:req.session.username,
-  //   vacations:vacations
-  // }
-  // res.json({userData:objUser});
-
 });
 
 router.get('/addfollow', async function(req, res, next) {
@@ -160,11 +150,65 @@ router.get('/addfollow', async function(req, res, next) {
     vacationid:req.query.vacationId
   }
   await VacationsOnFollow.create(newObjForDB);
-
-
+  // create new arrays of follow and not
+  let vacationsOnFollow=[];
+  let vacationsUnFollow=[];
+  let allVacations = await Vacations.findAll({});
+  let followVacationsFromDB= await VacationsOnFollow.findAll({where:{username:req.session.username}});
+  if(followVacationsFromDB.length > 0){
+    for (let i = 0; i < allVacations.length; i++) {
+      let check =  followVacationsFromDB.find(follow=> follow.vacationid === allVacations[i].id);
+      console.log(check)
+      if(check === undefined){
+        vacationsUnFollow.push(allVacations[i]);
+      }else{
+        vacationsOnFollow.push(allVacations[i]);
+      }
+    }
+    res.json({vacationsOnFollow:vacationsOnFollow,vacationsUnFollow:vacationsUnFollow,id:req.session.id,
+    role:req.session.role,clientName:req.session.clientName,userName:req.session.username});
+  }else{
+    res.json({vacationsOnFollow:vacationsOnFollow,vacationsUnFollow:allVacations,id:req.session.id,
+    role:req.session.role,clientName:req.session.clientName,userName:req.session.username});
+  }
+});
 
 router.get('/removefollow', async function(req, res, next) {
-  
+  await sequelize.sync();
+  let vacationfollowers = await Vacations.findAll({
+    where:{
+      id:req.query.vacationId
+    }
+  });
+  let reducefollow = vacationfollowers[0].followers -1;
+  await Vacations.update({followers:reducefollow},{
+    where:{id:req.query.vacationId}
+  });
+  // delete row in db of vacations on follow
+  await VacationsOnFollow.destroy({
+    where:{username:req.session.username,vacationid:req.query.vacationId}
+  });
+  // data again
+  let vacationsOnFollow=[];
+  let vacationsUnFollow=[];
+  let allVacations = await Vacations.findAll({});
+  let followVacationsFromDB= await VacationsOnFollow.findAll({where:{username:req.session.username}});
+  if(followVacationsFromDB.length > 0){
+    for (let i = 0; i < allVacations.length; i++) {
+      let check =  followVacationsFromDB.find(follow=> follow.vacationid === allVacations[i].id);
+      console.log(check)
+      if(check === undefined){
+        vacationsUnFollow.push(allVacations[i]);
+      }else{
+        vacationsOnFollow.push(allVacations[i]);
+      }
+    }
+    res.json({vacationsOnFollow:vacationsOnFollow,vacationsUnFollow:vacationsUnFollow,id:req.session.id,
+    role:req.session.role,clientName:req.session.clientName,userName:req.session.username});
+  }else{
+    res.json({vacationsOnFollow:vacationsOnFollow,vacationsUnFollow:allVacations,id:req.session.id,
+    role:req.session.role,clientName:req.session.clientName,userName:req.session.username});
+  }
 });
 
 module.exports = router;
