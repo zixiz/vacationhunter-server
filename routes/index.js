@@ -47,6 +47,7 @@ router.post('/addvactions', async function(req, res, next) {
     console.log(objAddVacation);
     await Vacations.create(objAddVacation);
     res.json({msg:'vacation created'});
+    
 });
 
 router.post('/register', async function(req, res, next) {
