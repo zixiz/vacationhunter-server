@@ -1,6 +1,7 @@
 var express = require('express');
 var router = express.Router();
 const Sequelize = require('sequelize');
+var socketHelper = require('../socket/sockethelper')
 
 const sequelize = new Sequelize('vacations_db', 'root', '', {
   host: 'localhost',
@@ -17,7 +18,7 @@ const Users = sequelize.define('Users',{
 const Vacations = sequelize.define('vacations', {
   destination: Sequelize.STRING,
   description: Sequelize.STRING,
-  image: Sequelize.STRING,
+  image: Sequelize.STRING(9000000),
   start_date: Sequelize.DATEONLY,
   end_date: Sequelize.DATEONLY,
   price: Sequelize.STRING,
@@ -34,7 +35,36 @@ router.get('/', function(req, res, next) {
   res.render('index', { title: 'Express' });
 });
 
+router.get('/admindata', async function(req, res, next) {
+  if(req.session.role === "admin"){
+    await sequelize.sync();
+    adminvacations = await Vacations.findAll({});
+    res.json({adminvacations:adminvacations,id:req.session.id,role:req.session.role, clientName:req.session.clientName,username:req.session.username})
+  }else{
+    res.json({msg:"error"})
+  }
+});
+
+router.put('/admindata', async function(req,res,next){
+  if(req.session.role==="admin"){
+    console.log(req.body);
+    await sequelize.sync();
+    await Vacations.update(req.body,{
+      where:{
+        id:req.body.vacationId
+      }
+    });
+    adminvacations = await Vacations.findAll({});
+    res.json({adminvacations:adminvacations});
+    socketHelper.sendMessgae("vacationsChange");
+  }else{
+    res.json({msg:"Error"})
+  }
+});
+
+
 router.post('/addvactions', async function(req, res, next) {
+  if(req.session.role === "admin"){
     let objAddVacation = {
       destination: req.body.destination,
       description: req.body.description,
@@ -44,15 +74,45 @@ router.post('/addvactions', async function(req, res, next) {
       price: req.body.price,
       followers:0
     };
-    console.log(objAddVacation);
+    await sequelize.sync();
     await Vacations.create(objAddVacation);
-    res.json({msg:'vacation created'});
-    
+    let adminvacations = await Vacations.findAll({});
+    res.json({adminvacations:adminvacations});
+    socketHelper.sendMessgae("vacationsChange");
+  }else{
+    res.json({msg:"Error"});
+  }   
 });
+
+router.get('/deletevacation', async function(req, res, next) {
+  if(req.session.role==="admin"){
+    vacationIdFromClient = req.query.vacationId;
+    await sequelize.sync();
+    await Vacations.destroy({
+      where:{id:vacationIdFromClient}
+    });
+    let onFollow = await VacationsOnFollow.findAll({
+      where:{vacationid:vacationIdFromClient}
+    });
+    if(onFollow.length != 0){
+      await VacationsOnFollow.destroy({
+        where:{vacationid:vacationIdFromClient}
+      });
+      let adminvacations = await Vacations.findAll({});
+      res.json({adminvacations:adminvacations});
+    }else{
+      let adminvacations = await Vacations.findAll({});
+      res.json({adminvacations:adminvacations});
+    }
+
+  }else{
+    res.json({msg:"Error"});
+  }
+})
 
 router.post('/register', async function(req, res, next) {
   await sequelize.sync();
-    let user = await Users.findAll({
+     user = await Users.findAll({
         where: {
             username: req.body.username
         }
@@ -69,16 +129,14 @@ router.post('/register', async function(req, res, next) {
     await Users.create(newObjForDB);
     res.json({msg:'User created, you can login now.'});
   }
-
 });
 
 router.get('/checksession', async function(req, res, next) {
   if(req.session.clientName && req.session.role ){
-    res.json({id: req.session.id,role:req.session.role, clientName:req.session.clientName, username:req.session.username, vacations:req.session.vacations , success:true});
+    res.json({id: req.session.id,role:req.session.role, clientName:req.session.clientName, username:req.session.username, success:true});
   }else{
     res.json({success:false});
   }
-  
 });
 
 router.get('/logout', async function(req, res, next) {
@@ -88,25 +146,28 @@ router.get('/logout', async function(req, res, next) {
 });
 
 router.post('/login', async function(req, res, next) {
-  let objForLogin={
-    username:req.body.username,
-    password:req.body.pass
-  }
-  await sequelize.sync();
-    let user = await Users.findAll({
-      where: objForLogin
-    });
-    if(user.length==0){
-      res.json({msg:'Username and password incorrect.'});
-    
-    }else{
-        req.session.id = user[0].id;
-        req.session.role = user[0].role;
-        req.session.clientName = user[0].name;
-        req.session.username = user[0].username;
-        
-        res.json({id:user[0].id ,role:user[0].role,name:user[0].name,username:user[0].username})
+  if(req.body.username===""||req.body.pass===""){
+    res.json({msg:"All inputs are required"})
+  }else{
+    let objForLogin={
+      username:req.body.username,
+      password:req.body.pass
     }
+    await sequelize.sync();
+      let user = await Users.findAll({
+        where: objForLogin
+      });
+      if(user.length==0){
+        res.json({msg:'Username and password incorrect.'});
+      
+      }else{
+          req.session.id = user[0].id;
+          req.session.role = user[0].role;
+          req.session.clientName = user[0].name;
+          req.session.username = user[0].username;
+          res.json({id:user[0].id ,role:user[0].role,name:user[0].name,username:user[0].username})
+      }
+  }
 });
 
 router.get('/user', async function(req, res, next) {
