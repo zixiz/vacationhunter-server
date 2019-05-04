@@ -1,7 +1,7 @@
 var express = require('express');
 var router = express.Router();
 const Sequelize = require('sequelize');
-var socketHelper = require('../socket/sockethelper')
+var socketHelper = require('../socket/sockethelper');
 
 const sequelize = new Sequelize('vacations_db', 'root', '', {
   host: 'localhost',
@@ -13,7 +13,7 @@ const Users = sequelize.define('Users',{
   username: Sequelize.STRING,
   password:Sequelize.STRING,
   role: Sequelize.STRING
-})
+});
 
 const Vacations = sequelize.define('vacations', {
   destination: Sequelize.STRING,
@@ -34,6 +34,8 @@ const VacationsOnFollow = sequelize.define('follow_vacation', {
 router.get('/', function(req, res, next) {
   res.render('index', { title: 'Express' });
 });
+
+// Admin routers
 
 router.get('/admindata', async function(req, res, next) {
   if(req.session.role === "admin"){
@@ -63,7 +65,7 @@ router.put('/admindata', async function(req,res,next){
 });
 
 
-router.post('/addvactions', async function(req, res, next) {
+router.post('/admindata', async function(req, res, next) {
   if(req.session.role === "admin"){
     let objAddVacation = {
       destination: req.body.destination,
@@ -108,7 +110,33 @@ router.get('/deletevacation', async function(req, res, next) {
   }else{
     res.json({msg:"Error"});
   }
-})
+});
+
+// Restfull vacations
+router.get('/vacation', async function(req,res,next){
+  if(req.session.role === "admin"){
+    await sequelize.sync();
+    let allVacations = await Vacations.findAll({});
+    res.json(allVacations);
+  }else{
+    res.json({msg:"Error"})
+  }
+});
+
+router.get('/vacation/:id', async function(req,res,next){
+  if(req.session.role === "admin"){
+    let id = req.params.id;
+    await sequelize.sync();
+    let exact = await Vacations.findAll({
+      where:{id:id}
+    });
+    res.json(exact);
+  }else{
+    res.json({msg:"Error"})
+  }
+});
+
+// registration and login
 
 router.post('/register', async function(req, res, next) {
   await sequelize.sync();
